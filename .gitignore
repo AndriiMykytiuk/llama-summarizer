@@ -1,0 +1,42 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+*.egg-info/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test files (if recreated)
+test-*.py
+test-*.sh
+
+# Deprecated (kept for reference)
+deprecated/
+
+# Docker
+docker-compose.override.yml
+
+# Deprecated files (keep in repo for reference but mark clearly)
+# Dockerfile and render.yaml are kept but marked deprecated

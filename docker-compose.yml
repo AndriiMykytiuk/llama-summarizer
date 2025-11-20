@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # Option A: Llama 8B (works without GPU)
+  llama-8b:
+    build:
+      context: .
+      dockerfile: Dockerfile.small
+    ports:
+      - "8080:8080"
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
+    # Resource limits for local testing
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Option B: Llama 70B (requires GPU)
+  # Uncomment to test locally with GPU
+  # llama-70b:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.gpu
+  #   ports:
+  #     - "8081:8080"
+  #   environment:
+  #     - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 48G
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]

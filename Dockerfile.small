@@ -1,0 +1,19 @@
+# Option A: Smaller model optimized for Render Pro (32GB RAM)
+FROM ghcr.io/huggingface/text-generation-inference:2.4.0
+
+# Llama 3.1 8B Instruct - fits comfortably in 32GB, excellent quality
+# Alternative: meta-llama/Llama-3.2-11B-Vision-Instruct for vision capabilities
+ENV MODEL_ID=meta-llama/Meta-Llama-3.1-8B-Instruct
+ENV MAX_TOTAL_TOKENS=8192
+ENV MAX_INPUT_TOKENS=7168
+ENV MAX_BATCH_PREFILL_TOKENS=4096
+
+# Expose port for Render
+EXPOSE 8080
+
+CMD ["--model-id", "meta-llama/Meta-Llama-3.1-8B-Instruct", \
+     "--max-total-tokens", "8192", \
+     "--max-input-tokens", "7168", \
+     "--max-batch-prefill-tokens", "4096", \
+     "--port", "8080", \
+     "--max-concurrent-requests", "128"]
