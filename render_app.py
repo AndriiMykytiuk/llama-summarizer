@@ -12,7 +12,7 @@ app = FastAPI(title="Pegasus Summarizer & Translation API", version="2.0")
 
 # Hugging Face Inference API
 HF_API_URL = "https://router.huggingface.co/hf-inference/models/google/pegasus-xsum"
-HF_TRANSLATE_EN_UK_URL = "https://router.huggingface.co/hf-inference/models/Helsinki-NLP/opus-mt-en-uk"
+HF_TRANSLATE_EN_UK_URL = "https://router.huggingface.co/hf-inference/models/facebook/nllb-200-distilled-600M"
 HF_TOKEN = os.getenv("HF_TOKEN", "")  # Optional - works without token but with rate limits
 
 
@@ -48,7 +48,7 @@ async def root():
         "message": "Pegasus Summarizer & Translation API",
         "models": {
             "summarization": "google/pegasus-xsum",
-            "translation": "Helsinki-NLP/opus-mt-en-uk"
+            "translation": "facebook/nllb-200-distilled-600M"
         },
         "endpoints": {
             "/summarize": "Summarize English text (Pegasus XSUM)",
@@ -139,7 +139,11 @@ async def translate(request: TranslateRequest):
             headers["Authorization"] = f"Bearer {HF_TOKEN}"
 
         payload = {
-            "inputs": request.text
+            "inputs": request.text,
+            "parameters": {
+                "src_lang": "eng_Latn",
+                "tgt_lang": "ukr_Cyrl"
+            }
         }
 
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -187,7 +191,7 @@ async def health():
         "status": "healthy",
         "mode": "API (no local model)",
         "summarization_model": "google/pegasus-xsum",
-        "translation_model": "Helsinki-NLP/opus-mt-en-uk"
+        "translation_model": "facebook/nllb-200-distilled-600M"
     }
 
 
