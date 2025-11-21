@@ -8,10 +8,10 @@ from pydantic import BaseModel
 import httpx
 import os
 
-app = FastAPI(title="DistilBART Summarizer & Translation API", version="2.0")
+app = FastAPI(title="Pegasus Summarizer & Translation API", version="2.0")
 
 # Hugging Face Inference API
-HF_API_URL = "https://router.huggingface.co/hf-inference/models/sshleifer/distilbart-cnn-12-6"
+HF_API_URL = "https://router.huggingface.co/hf-inference/models/google/pegasus-xsum"
 HF_TRANSLATE_EN_UK_URL = "https://router.huggingface.co/hf-inference/models/Helsinki-NLP/opus-mt-en-uk"
 HF_TOKEN = os.getenv("HF_TOKEN", "")  # Optional - works without token but with rate limits
 
@@ -45,9 +45,13 @@ async def root():
     return {
         "status": "healthy",
         "services": ["summarization", "translation_en_uk"],
-        "message": "DistilBART Summarizer & Translation API",
+        "message": "Pegasus Summarizer & Translation API",
+        "models": {
+            "summarization": "google/pegasus-xsum",
+            "translation": "Helsinki-NLP/opus-mt-en-uk"
+        },
         "endpoints": {
-            "/summarize": "Summarize English text",
+            "/summarize": "Summarize English text (Pegasus XSUM)",
             "/translate": "Translate English to Ukrainian"
         }
     }
@@ -56,9 +60,9 @@ async def root():
 @app.post("/summarize", response_model=SummarizeResponse)
 async def summarize(request: SummarizeRequest):
     """
-    Summarize text using DistilBART via Hugging Face Inference API
+    Summarize text using Google Pegasus XSUM via Hugging Face Inference API
 
-    No local model needed - uses HF API!
+    Pegasus produces high-quality, concise summaries.
     """
     if not request.text or len(request.text.strip()) < 10:
         raise HTTPException(status_code=400, detail="Text is too short or empty")
@@ -182,7 +186,7 @@ async def health():
     return {
         "status": "healthy",
         "mode": "API (no local model)",
-        "summarization_model": "distilbart-cnn-12-6",
+        "summarization_model": "google/pegasus-xsum",
         "translation_model": "Helsinki-NLP/opus-mt-en-uk"
     }
 
