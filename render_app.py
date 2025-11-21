@@ -1,18 +1,18 @@
 """
-DistilBART Summarizer for Render
-Optimized for 2GB RAM, 1 CPU deployment
+DistilBART Summarizer using Hugging Face Inference API
+No local model loading - uses HF API (much simpler deployment)
 """
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from transformers import pipeline
-import torch
+import httpx
 import os
 
-app = FastAPI(title="DistilBART Summarizer", version="1.0")
+app = FastAPI(title="DistilBART Summarizer (API)", version="1.0")
 
-# Global model variable
-summarizer = None
+# Hugging Face Inference API
+HF_API_URL = "https://api-inference.huggingface.co/models/sshleifer/distilbart-cnn-12-6"
+HF_TOKEN = os.getenv("HF_TOKEN", "")  # Optional - works without token but with rate limits
 
 
 class SummarizeRequest(BaseModel):
@@ -27,77 +27,75 @@ class SummarizeResponse(BaseModel):
     summary_length: int
 
 
-@app.on_event("startup")
-async def load_model():
-    """Load model once at startup"""
-    global summarizer
-
-    print("Loading DistilBART-CNN model...")
-
-    # Use CPU and low memory mode
-    device = 0 if torch.cuda.is_available() else -1  # -1 for CPU
-
-    # Load the summarization pipeline
-    summarizer = pipeline(
-        "summarization",
-        model="sshleifer/distilbart-cnn-12-6",
-        device=device,
-        torch_dtype=torch.float32,  # Use float32 for CPU
-    )
-
-    print("Model loaded successfully!")
-
-
 @app.get("/")
 async def root():
     """Health check endpoint"""
     return {
         "status": "healthy",
         "model": "distilbart-cnn-12-6",
-        "message": "DistilBART Summarizer API"
+        "message": "DistilBART Summarizer API (Hugging Face Inference API)"
     }
 
 
 @app.post("/summarize", response_model=SummarizeResponse)
 async def summarize(request: SummarizeRequest):
     """
-    Summarize text using DistilBART-CNN
+    Summarize text using DistilBART via Hugging Face Inference API
 
-    Example:
-    ```
-    POST /summarize
-    {
-        "text": "Your long text here...",
-        "max_length": 150,
-        "min_length": 30
-    }
-    ```
+    No local model needed - uses HF API!
     """
-    if not summarizer:
-        raise HTTPException(status_code=503, detail="Model not loaded")
-
     if not request.text or len(request.text.strip()) < 10:
         raise HTTPException(status_code=400, detail="Text is too short or empty")
 
     try:
-        # Generate summary
-        result = summarizer(
-            request.text,
-            max_length=request.max_length,
-            min_length=request.min_length,
-            do_sample=False,  # Deterministic for consistency
-            truncation=True,  # Handle long inputs
-        )
+        # Call Hugging Face Inference API
+        headers = {}
+        if HF_TOKEN:
+            headers["Authorization"] = f"Bearer {HF_TOKEN}"
 
-        summary_text = result[0]["summary_text"]
+        payload = {
+            "inputs": request.text,
+            "parameters": {
+                "max_length": request.max_length,
+                "min_length": request.min_length,
+                "do_sample": False,
+            }
+        }
 
-        return SummarizeResponse(
-            summary=summary_text,
-            original_length=len(request.text),
-            summary_length=len(summary_text)
-        )
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(HF_API_URL, headers=headers, json=payload)
 
+            if response.status_code == 503:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Model is loading on Hugging Face servers. Please retry in 20 seconds."
+                )
+
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Hugging Face API error: {response.text}"
+                )
+
+            result = response.json()
+
+            # Extract summary from API response
+            if isinstance(result, list) and len(result) > 0:
+                summary_text = result[0].get("summary_text", "")
+            else:
+                raise HTTPException(status_code=500, detail="Unexpected API response format")
+
+            return SummarizeResponse(
+                summary=summary_text,
+                original_length=len(request.text),
+                summary_length=len(summary_text)
+            )
+
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Request to Hugging Face API timed out")
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=500, detail=f"Summarization failed: {str(e)}")
 
 
@@ -105,13 +103,13 @@ async def summarize(request: SummarizeRequest):
 async def health():
     """Health check for monitoring"""
     return {
-        "status": "healthy" if summarizer else "loading",
-        "model_loaded": summarizer is not None
+        "status": "healthy",
+        "mode": "API (no local model)",
+        "api_endpoint": HF_API_URL
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-
     port = int(os.getenv("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
