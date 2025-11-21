@@ -11,7 +11,7 @@ import os
 app = FastAPI(title="DistilBART Summarizer (API)", version="1.0")
 
 # Hugging Face Inference API
-HF_API_URL = "https://router.huggingface.co/models/sshleifer/distilbart-cnn-12-6"
+HF_API_URL = "https://router.huggingface.co/hf-inference/models/sshleifer/distilbart-cnn-12-6"
 HF_TOKEN = os.getenv("HF_TOKEN", "")  # Optional - works without token but with rate limits
 
 
